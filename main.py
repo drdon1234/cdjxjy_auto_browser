@@ -28,6 +28,17 @@ class AutoBrowser():
             time.sleep(0.5)
         raise Exception("等待课程窗口超时")
 
+    def try_accept_js_alert(self):
+        try:
+            alert = self.driver.switch_to.alert
+            print(f'[记录] 检测到alert弹窗: {alert.text}')
+            alert.accept()
+            print("[记录] 已自动点击alert确定")
+            time.sleep(1)
+            return True
+        except Exception:
+            return False
+
     def inject_focus_js(self):
         try:
             self.driver.execute_script("""
@@ -46,47 +57,6 @@ class AutoBrowser():
         except Exception:
             pass
 
-    def try_accept_js_alert(self):
-        try:
-            alert = self.driver.switch_to.alert
-            print(f'[记录] 检测到alert弹窗: {alert.text}')
-            alert.accept()
-            print("[记录] 已自动点击alert确定")
-            time.sleep(1)
-            return True
-        except Exception:
-            return False
-
-    def auto_accept_continue_alert(self, max_wait=10):
-        keywords = [
-            "你好，你还有其它课程正在学习",
-            "非正常关闭学习课程",
-            "继续学习将会停止"
-        ]
-        for _ in range(max_wait):
-            for kw in keywords:
-                elems = self.driver.find_elements(By.XPATH, f"//*[contains(.,'{kw}')]")
-                for elem in elems:
-                    parent = elem
-                    for _ in range(6):
-                        try:
-                            parent = parent.find_element(By.XPATH, '..')
-                            btns = parent.find_elements(By.XPATH,
-                                ".//button[contains(.,'确定')]"
-                                "|.//a[contains(.,'确定')]"
-                                "|.//span[contains(.,'确定')]"
-                                "|.//div[contains(.,'确定')]"
-                            )
-                            for btn in btns:
-                                btn.click()
-                                print('[记录] 已自动点击HTML弹窗“确定”按钮')
-                                time.sleep(1)
-                                return True
-                        except Exception:
-                            pass
-            time.sleep(1)
-        return False
-
     def try_click_big_play_btn(self):
         try:
             btns = self.driver.find_elements(By.CSS_SELECTOR, "div.prism-big-play-btn")
@@ -101,30 +71,6 @@ class AutoBrowser():
                     return True
         except Exception:
             pass
-        return False
-
-    def check_and_solve_captcha(self, max_retry=5):
-        for _ in range(max_retry):
-            try:
-                layer = self.driver.find_element(By.ID, 'layui-layer1')
-                if layer.is_displayed():
-                    code = self.driver.find_element(By.ID, "checkCode").text.strip()
-                    input_box = self.driver.find_element(By.ID, "yz")
-                    input_box.clear()
-                    input_box.send_keys(code)
-                    time.sleep(0.3)
-                    self.driver.find_element(By.CSS_SELECTOR, "button.yzsubmit").click()
-                    print("[记录] 验证码已填写并提交")
-                    time.sleep(1.5)
-                    if not layer.is_displayed():
-                        print('[记录] 验证码窗口关闭，验证通过')
-                        return True
-                    else:
-                        input_box.clear()
-                        time.sleep(0.5)
-                        continue
-            except Exception:
-                break
         return False
 
     def try_resume_video(self):
@@ -150,6 +96,30 @@ class AutoBrowser():
                 ActionChains(self.driver).move_to_element(player_area).perform()
         except Exception:
             pass
+
+    def check_and_solve_captcha(self, max_retry=5):
+        for _ in range(max_retry):
+            try:
+                layer = self.driver.find_element(By.ID, 'layui-layer1')
+                if layer.is_displayed():
+                    code = self.driver.find_element(By.ID, "checkCode").text.strip()
+                    input_box = self.driver.find_element(By.ID, "yz")
+                    input_box.clear()
+                    input_box.send_keys(code)
+                    time.sleep(0.3)
+                    self.driver.find_element(By.CSS_SELECTOR, "button.yzsubmit").click()
+                    print("[记录] 验证码已填写并提交")
+                    time.sleep(1.5)
+                    if not layer.is_displayed():
+                        print('[记录] 验证码窗口关闭，验证通过')
+                        return True
+                    else:
+                        input_box.clear()
+                        time.sleep(0.5)
+                        continue
+            except Exception:
+                break
+        return False
 
     def run(self):
         try:
@@ -191,13 +161,9 @@ class AutoBrowser():
             self.driver.switch_to.window(new_window)
             print('[记录] 切到新课程窗口:', new_window)
             time.sleep(2)
-            self.inject_focus_js()
             self.try_accept_js_alert()
-            self.auto_accept_continue_alert(max_wait=1)
+            self.inject_focus_js()
             while True:
-                self.inject_focus_js()
-                self.try_accept_js_alert()
-                self.auto_accept_continue_alert(max_wait=1)
                 self.try_click_big_play_btn()
                 self.try_resume_video()
                 self.check_and_solve_captcha()
