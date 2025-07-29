@@ -6,7 +6,6 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains
 
-# 日志全局配置
 logging.basicConfig(
     level=logging.INFO,
     format='[%(asctime)s][%(levelname)s] %(message)s',
@@ -22,7 +21,6 @@ class AutoBrowser():
             'user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36'
         )
         self.driver = webdriver.Chrome(options=options)
-        self.vars = {}
 
     def quit(self, method):
         self.driver.quit()
