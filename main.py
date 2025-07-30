@@ -5,6 +5,8 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 logging.basicConfig(
     level=logging.INFO,
@@ -104,26 +106,36 @@ class AutoBrowser():
             pass
 
     def check_and_solve_captcha(self, max_retry=5):
-        for _ in range(max_retry):
+        for i in range(max_retry):
             try:
-                layer = self.driver.find_element(By.ID, 'layui-layer1')
-                if layer.is_displayed():
-                    code = self.driver.find_element(By.ID, "checkCode").text.strip()
-                    input_box = self.driver.find_element(By.ID, "yz")
-                    input_box.clear()
-                    input_box.send_keys(code)
-                    time.sleep(0.3)
-                    self.driver.find_element(By.CSS_SELECTOR, "button.yzsubmit").click()
-                    logging.info("验证码已填写并提交")
-                    time.sleep(1.5)
-                    if not layer.is_displayed():
-                        logging.info('验证码窗口关闭，验证通过')
-                        return True
-                    else:
-                        input_box.clear()
-                        time.sleep(0.5)
-                        continue
-            except Exception:
+                layers = self.driver.find_elements(By.XPATH, "//*[starts-with(@id, 'layui-layer')]")
+                visible_layers = [l for l in layers if l.is_displayed()]
+                if not visible_layers:
+                    return False
+                layer = visible_layers[0]
+
+                WebDriverWait(self.driver, 5).until(
+                    EC.visibility_of_element_located((By.ID, "checkCode"))
+                )
+                code = self.driver.find_element(By.ID, "checkCode").text.strip()
+                logging.info(f"第{i + 1}次尝试，验证码是：{code}")
+                input_box = self.driver.find_element(By.ID, "yz")
+                input_box.clear()
+                input_box.send_keys(code)
+                time.sleep(0.5)
+                self.driver.find_element(By.CSS_SELECTOR, "button.yzsubmit").click()
+                logging.info("验证码已填写并提交")
+                time.sleep(2)
+                if not layer.is_displayed():
+                    logging.info('验证码窗口关闭，验证通过')
+                    return True
+                else:
+                    logging.warning('验证码校验失败，准备重试或刷新验证码')
+                    self.driver.find_element(By.CLASS_NAME, "yz").click()  # 点击刷新验证码
+                    time.sleep(1)
+                    continue
+            except Exception as e:
+                logging.error(f"验证码处理异常: {e}")
                 break
         return False
 
