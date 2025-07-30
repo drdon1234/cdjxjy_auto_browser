@@ -7,6 +7,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import StaleElementReferenceException, NoSuchElementException
 
 logging.basicConfig(
     level=logging.INFO,
@@ -112,13 +113,12 @@ class AutoBrowser():
                 visible_layers = [l for l in layers if l.is_displayed()]
                 if not visible_layers:
                     return False
-                layer = visible_layers[0]
-
                 WebDriverWait(self.driver, 5).until(
                     EC.visibility_of_element_located((By.ID, "checkCode"))
                 )
-                code = self.driver.find_element(By.ID, "checkCode").text.strip()
-                logging.info(f"第{i + 1}次尝试，验证码是：{code}")
+                code_element = self.driver.find_element(By.ID, "checkCode")
+                code = code_element.text.strip()
+                logging.info(f"第{i+1}次尝试，验证码是：{code}")
                 input_box = self.driver.find_element(By.ID, "yz")
                 input_box.clear()
                 input_box.send_keys(code)
@@ -126,14 +126,22 @@ class AutoBrowser():
                 self.driver.find_element(By.CSS_SELECTOR, "button.yzsubmit").click()
                 logging.info("验证码已填写并提交")
                 time.sleep(2)
-                if not layer.is_displayed():
+                layers = self.driver.find_elements(By.XPATH, "//*[starts-with(@id, 'layui-layer')]")
+                visible_layers = [l for l in layers if l.is_displayed()]
+                if not visible_layers:
                     logging.info('验证码窗口关闭，验证通过')
                     return True
                 else:
                     logging.warning('验证码校验失败，准备重试或刷新验证码')
-                    self.driver.find_element(By.CLASS_NAME, "yz").click()  # 点击刷新验证码
+                    self.driver.find_element(By.CLASS_NAME, "yz").click()
                     time.sleep(1)
                     continue
+            except StaleElementReferenceException:
+                logging.warning("检测到StaleElementReferenceException，刷新元素重试。")
+                continue
+            except NoSuchElementException:
+                logging.warning("验证码相关元素未找到，可能验证码弹窗已关闭。")
+                return False
             except Exception as e:
                 logging.error(f"验证码处理异常: {e}")
                 break
@@ -202,7 +210,7 @@ class AutoBrowser():
                         try:
                             try:
                                 self.driver.find_element(By.LINK_TEXT, "学习记录").click()
-                            except:
+                            except Exception:
                                 self.driver.find_element(
                                     By.XPATH,
                                     "//div[contains(text(), '学习记录') and contains(@class, 'courseToggle_hook')]"
@@ -217,26 +225,26 @@ class AutoBrowser():
                             self.driver.find_element(By.ID, "AddRecord").click()
                             logging.info("学习记录已自动填写并提交")
                             time.sleep(2)
-                        except Exception as e:
+                        except Exception:
                             logging.error("学习记录填写或提交失败")
                         try:
                             self.driver.close()
-                        except:
+                        except Exception:
                             pass
                         try:
                             self.driver.switch_to.window(handles0[0])
-                        except:
+                        except Exception:
                             pass
                         try:
                             self.driver.refresh()
-                        except:
+                        except Exception:
                             pass
                         time.sleep(2)
                         break
                     else:
                         logging.info('进度未学满，5秒后重试')
                         time.sleep(5)
-                except Exception as e:
+                except Exception:
                     logging.error('获取学习进度失败，5秒后重试')
                     time.sleep(5)
 
